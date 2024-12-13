@@ -1,0 +1,78 @@
+from flask import Flask, request, session, redirect, url_for, render_template_string
+
+app = Flask(__name__)
+app.secret_key = "super-secret-key"
+
+# Kullanıcı veritabanı
+users = {
+    "user1": {"password": "password123", "role": "user"},
+    "admin": {"password": "admin123", "role": "admin"},
+}
+
+@app.route("/")
+def index():
+    if "username" in session:
+        return f"Hoş geldiniz, {session['username']}! Rolünüz: {session.get('role', 'user')}. \
+                <a href='/profile'>Profil</a>  <a href='/logout'>Çıkış</a>"
+    return "Lütfen <a href='/login'>giriş yapın</a>."
+
+@app.route("/admin")
+def admin():
+    if session.get("role") == "admin":
+        return "Admin paneline hoş geldiniz!"
+    return "Yetkisiz erişim! <a href='/'>Anasayfaya dön</a>"
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        user = users.get(username)
+
+        if user and user["password"] == password:
+            session["username"] = username
+            session["role"] = user["role"]
+            return redirect(url_for("index"))
+        return "Giriş başarısız!"
+    return '''
+        <form method="post">
+            Kullanıcı Adı: <input name="username" type="text"><br>
+            Şifre: <input name="password" type="password"><br>
+            <button type="submit">Giriş Yap</button>
+        </form>
+    '''
+
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    if "username" not in session:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        username = session["username"]
+        new_password = request.form.get("password")
+        role = request.form.get("role") 
+
+        users[username]["password"] = new_password
+        users[username]["role"] = role
+        #session["role"] =role
+
+
+        return "Profil güncellendi! <a href='/'>Anasayfaya dön</a>"
+
+    username = session["username"]
+    return render_template_string(f'''
+        <h1>Profil</h1>
+        Kullanıcı Adı: {username}<br>
+        <form method="post">
+            Şifre: <input name="password" type="password" placeholder="Yeni şifre"><br>
+            <button type="submit">Profili Güncelle</button>
+        </form>
+    ''')
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
+
+if __name__ == "__main__":
+    app.run(debug=True)
